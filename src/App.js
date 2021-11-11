@@ -1,66 +1,115 @@
 import React, { Component } from 'react';
 
-import Phonebook from './components/Phonebook';
-import ContactForm from './components/ContactForm';
-import Contacts from './components/Contacts';
+import s from './App.module.css';
 
-class App extends Component {
+import Searchbar from './component/Searchbar';
+import PreLoader from './component/PreLoader';
+import Modal from './component/Modal';
+import ImageGallery from './component/ImageGallery';
+import LoadMore from './component/LoadMore';
+
+import fetchDataApi from './services/fetchDataApi';
+
+export class App extends Component {
   state = {
-    contacts: [],
-  };
-
-  handleAddContact = newContact => {
-    const { contacts } = this.state;
-    this.setState({ contacts: [...contacts, newContact] });
-  };
-
-  handlerUniqName = name => {
-    const { contacts } = this.state;
-    const uniqName = !!contacts.find(
-      contact => contact.name.toLowerCase() === name.toLowerCase(),
-    );
-    if (uniqName) {
-      alert(`${name} is already in contacts`);
-      return false;
-    }
-    return true;
-  };
-
-  handleDeleteContact = id => {
-    this.setState(prevState => {
-      return {
-        contacts: prevState.contacts.filter(contact => contact.id !== id),
-      };
-    });
+    gallery: [],
+    searchQuery: '',
+    page: 1,
+    showModal: false,
+    showLoader: false,
+    error: null,
+    largeImage: {},
+    total: 0,
   };
 
   componentDidMount() {
-    const contacts = JSON.parse(localStorage.getItem('contacts'));
-    if (contacts) {
-      this.setState({ contacts });
-    }
+    this.setState({ showLoader: true });
+    this.fetchGallary();
   }
 
   componentDidUpdate(prevProps, prevState) {
-    if (prevState.contacts !== this.state.contacts) {
-      localStorage.setItem('contacts', JSON.stringify(this.state.contacts));
+    const prevQuery = prevState.searchQuery;
+    const naxtQuery = this.state.searchQuery;
+    if (prevQuery !== naxtQuery) {
+      this.fetchGallary();
     }
   }
 
+  fetchGallary = () => {
+    const { searchQuery, page } = this.state;
+    this.setState({ showLoader: true });
+
+    fetchDataApi(searchQuery, page)
+      .then(({ hits, total }) => {
+        this.setState(prevState => ({
+          gallery: [...prevState.gallery, ...hits],
+          page: prevState.page + 1,
+          total,
+        }));
+        this.scrollToDown();
+      })
+      .catch(error => this.setState({ error }))
+      .finally(() => this.setState({ showLoader: false }));
+  };
+
+  scrollToDown = () => {
+    window.scrollTo({
+      top: document.documentElement.scrollHeight,
+      behavior: 'smooth',
+    });
+  };
+
+  handleFormSubmit = searchQuery => {
+    if (this.state.searchQuery === searchQuery) {
+      return;
+    }
+    this.setState({ searchQuery, gallery: [], page: 1 });
+  };
+
+  toggleModal = () => {
+    this.setState(prevState => ({
+      showModal: !prevState.showModal,
+    }));
+  };
+
+  handleOpenPicture = largeImage => {
+    this.setState({ largeImage });
+    this.toggleModal();
+  };
+
+  showLoadMore = () => {
+    const { total, page } = this.state;
+    return Math.ceil(total / 12) !== page - 1;
+  };
+
   render() {
-    const { contacts } = this.state;
+    const { error, showLoader, showModal, gallery, largeImage } = this.state;
+    const showLoadMore = this.showLoadMore();
     return (
-      <Phonebook title="Phonebook">
-        <ContactForm
-          onAdd={this.handleAddContact}
-          onCheckforUniqName={this.handlerUniqName}
-        />
-        <Contacts
-          title="Contacts"
-          contacts={contacts}
-          onDeleteContact={this.handleDeleteContact}
-        />
-      </Phonebook>
+      <div className={s.container}>
+        <Searchbar onSubmit={this.handleFormSubmit} />
+
+        {error && <p>{error.message}</p>}
+
+        {gallery.length > 0 && (
+          <ImageGallery
+            gallery={gallery}
+            onOpenPicture={this.handleOpenPicture}
+          />
+        )}
+
+        {showLoader && <PreLoader />}
+
+        {gallery.length > 0 && !showLoader && showLoadMore && (
+          <LoadMore onLoadMore={this.fetchGallary} />
+        )}
+
+        {showModal && (
+          <Modal onClose={this.toggleModal}>
+            <img src={largeImage.largeImageURL} alt={largeImage.tags} />
+          </Modal>
+        )}
+      </div>
     );
   }
 }
