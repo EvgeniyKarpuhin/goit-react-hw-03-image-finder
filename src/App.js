@@ -1,5 +1,5 @@
 import React, { Component } from "react";
-import axios from "axios";
+import sendRequest from "./services/api";
 import Loader from "react-loader-spinner";
 import Searchbar from "./components/Searchbar/Searchbar";
 import ImageGallery from "./components/ImageGallery/ImageGallery";
@@ -21,29 +21,16 @@ class App extends Component {
   };
 
   searchImages = (e) => {
-    this.setState({ images: [], page: 1, loaded: false });
+    this.setState({ images: [], page: 2, loaded: false });
 
-    axios
-      .get(
-        `https://pixabay.com/api/?q=${this.state.value}&page=${this.state.page}&key=23539275-fb90155ac37cf87d4395ca2a5&image_type=photo&orientation=horizontal&per_page=12`
-      )
-      .then((response) => {
-        return this.setState({ images: response.data.hits, loaded: true });
-      });
+    sendRequest(this.state.value, this.state.page, this, this.state.images);
   };
 
   loadMoreImages = () => {
     const page = this.state.page;
     this.setState({ page: page + 1 });
-    const oldState = this.state.images;
 
-    axios
-      .get(
-        `https://pixabay.com/api/?q=${this.state.value}&page=${this.state.page}&key=23539275-fb90155ac37cf87d4395ca2a5&image_type=photo&orientation=horizontal&per_page=12`
-      )
-      .then((response) => {
-        return this.setState({ images: [...oldState, ...response.data.hits] });
-      });
+    sendRequest(this.state.value, this.state.page, this, this.state.images);
   };
 
   openLargeImage = (e) => {
@@ -70,34 +57,36 @@ class App extends Component {
   }
 
   render() {
+    const {
+      handleChange,
+      searchImages,
+      loadMoreImages,
+      openLargeImage,
+      closeModal,
+      state,
+    } = this;
+
     return (
       <>
         <Searchbar
-          onChange={this.handleChange}
-          onClick={this.searchImages}
-          state={this.state}
+          onChange={handleChange}
+          onClick={searchImages}
+          state={state}
         />
-        {this.state.loaded === false ? (
-          <div className="loader">
-            <Loader
-              type="Puff"
-              color="#00BFFF"
-              height={100}
-              width={100}
-              timeout={3000}
-            />
-          </div>
+        {state.loaded === false ? (
+          <Loader
+            type="Puff"
+            color="#00BFFF"
+            height={100}
+            width={100}
+            timeout={3000}
+            className="loader"
+          />
         ) : (
-          <ImageGallery state={this.state} onClick={this.openLargeImage} />
+          <ImageGallery state={state} onClick={openLargeImage} />
         )}
-        ;
-        {this.state.images.length !== 0 && (
-          <Button onClick={this.loadMoreImages} />
-        )}
-        ;
-        {this.state.modal === true && (
-          <Modal image={this.state.largeImage} onClick={this.closeModal} />
-        )}
+        ;{state.images.length && <Button onClick={loadMoreImages} />};
+        {state.modal && <Modal image={state.largeImage} onClick={closeModal} />}
       </>
     );
   }
