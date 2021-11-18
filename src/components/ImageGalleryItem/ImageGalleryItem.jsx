@@ -2,7 +2,7 @@ import React from "react";
 
 function ImageGalleryItem({ item, onClick }) {
   return (
-    <li id={item.id}>
+    <li>
       <img
         src={item.webformatURL}
         alt={item.id}
